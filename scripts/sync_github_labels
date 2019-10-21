@@ -1,0 +1,121 @@
+#!/usr/bin/env ruby
+require 'octokit'
+
+class LabelHandler
+  DEFAULT_LABELS = [
+    'documentation',
+    'duplicate',
+    'enhancement',
+    'good first issue',
+    'help wanted',
+    'invalid',
+    'wontfix'
+  ]
+
+  TEMPLATE_LABELS = [
+    { name: 'Bug', color: 'd73a4a' },
+    { name: 'Feature Request', color: 'a2eeef' },
+    { name: 'Question', color: 'd876e3' },
+    { name: 'Triage', color: 'f7ef48'}
+  ]
+
+  attr_reader :token, :repo_name
+
+  def initialize(token, repo_name)
+    @token = token
+    @repo_name = repo_name
+  end
+
+  def run(arguments)
+    @dry_run = arguments.include('--dry-run')
+
+    if arguments.include?('--list-labels')
+      puts labels.map(&:name)
+      return
+    end
+
+    delete_defaults if arguments.include?('--delete-defaults')
+    create_templates if arguments.include?('--create-templates')
+
+    if arguments.include?('--init-repo')
+      delete_defaults
+      create_templates
+    end
+  end
+
+  def labels
+    gh.labels(repo_name)
+  end
+
+  private
+
+  def gh
+    @gh ||= Octokit::Client.new(access_token: token)
+  end
+
+  def label_names
+    labels.map(&:name)
+  end
+
+  def delete_defaults
+    deleted = []
+    label_names.each do |label|
+      next unless DEFAULT_LABELS.include?(label)
+
+      gh.delete_label!(repo_name, label) unless @dry_run
+      deleted << label
+    end
+
+    puts "Deleted labels: #{deleted}"
+  end
+
+  def rename_defaults
+  end
+
+  def create_templates
+    template_by_names = TEMPLATE_LABELS.map { |label| [label[:name].downcase, label] }.to_h
+    updated = []
+    created = []
+
+    label_names.each do |label|
+      new_data = template_by_names[label.downcase]
+      next if new_data.nil?
+
+      gh.update_label(repo_name, label, new_data) unless @dry_run
+      updated << label
+    end
+
+    puts "Updated labels: #{updated}"
+
+    template_by_names.each do |label, data|
+      next if updated.include?(label) || updated.include?(data[:name])
+
+      gh.add_label(repo_name, data[:name], data[:color]) unless @dry_run
+      created << label
+    end
+
+    puts "Created labels: #{created}"
+  end
+end
+
+begin
+  token = ENV['GITHUB_TOKEN'] || raise('You need to set GITHUB_TOKEN')
+  repo_name = (ARGV[0] || raise("usage: #{$PROGRAM_NAME} <REPOSITORY_NAME>")).to_s
+  repo_name = "cucumber/#{repo_name}" unless repo_name.start_with? "cucumber/"
+
+  if ARGV.length == 1
+    puts "usage: #{$PROGRAM_NAME} <REPOSITORY_NAME>"
+    puts ""
+    puts "Available commands:"
+    puts " --create-templates: Create template labels or update existing matching labels"
+    puts " --delete-defaults:  Delete default tags created by GitHub"
+    puts " --init-repo:        Run all previous commands"
+    puts " --list-labels:      Show all labels in the repository"
+    puts " --dry-run:          Show what will happen by running the commands but don't execute on GitHub"
+    exit 0
+  end
+  LabelHandler.new(token, repo_name).run(ARGV[1..-1])
+
+rescue StandardError => e
+  abort e.message
+end
