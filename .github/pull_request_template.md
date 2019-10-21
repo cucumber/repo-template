@@ -1,8 +1,3 @@
----
-name: Pull request
-labels: Triage
----
-
 <!-- These sections are meant as guidance for you. If something doesn't fit, you can just skip it. -->
 
 ## Summary
