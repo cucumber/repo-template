@@ -27,7 +27,7 @@ class LabelHandler
   end
 
   def run(arguments)
-    @dry_run = arguments.include('--dry-run')
+    @dry_run = arguments.include?('--dry-run')
 
     if arguments.include?('--list-labels')
       puts labels.map(&:name)
