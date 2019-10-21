@@ -13,3 +13,5 @@ Stores the templates used for issues and pull requests creations on GitHub. Sync
 ```
 
 This script will delete the existing templates in the `.github` folder in your repository and add the new ones.
+
+I add something here :)
