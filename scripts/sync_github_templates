@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <path to repository>"
+  exit 1
+fi
+
+source_repo=`pwd`
+destination_repo=$1
+
+pushd $destination_repo
+
+for template in $(git ls-tree --full-tree -r --name-only HEAD .github/**.md); do
+  echo "Deleting previous template: $template"
+  git rm $template
+done;
+
+echo "Adding needed structure"
+mkdir -p '.github/ISSUE_TEMPLATE'
+
+echo "Copying new templates"
+cp $source_repo/.github/*.md .github
+cp $source_repo/.github/ISSUE_TEMPLATE/*.md .github/ISSUE_TEMPLATE
+
+echo "Adding new files to git"
+git add .github/ISSUE_TEMPLATE
+git add .github/**.md
+
+popd
